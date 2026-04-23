@@ -52,10 +52,15 @@
         </div>
 
         <div class="topbar-right">
-          <div class="hero-control">
+          <div class="hero-control model-control">
             <span class="hero-control-label">Modell</span>
-            <span class="hero-control-value">Gemini</span>
+            <select id="modelSelect" class="model-select">
+              <option value="gemini-2.5-flash">Gemini Flash</option>
+              <option value="gemini-2.5-pro">Gemini Pro</option>
+            </select>
           </div>
+
+          <button id="clearChatBtn" class="clear-chat-btn">Chat löschen</button>
         </div>
       </header>
 
