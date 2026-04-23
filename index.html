@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mgeexAI | Gemini Chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-pill">
+        <div class="brand-icon">AI</div>
+        <div class="brand-text">
+          <h1>mgeexAI</h1>
+          <p>Premium Gemini Chat</p>
+        </div>
+      </div>
+
+      <button id="newChatBtn" class="sidebar-main-btn">+ Neuer Chat</button>
+
+      <div class="sidebar-card">
+        <p class="sidebar-label">Beispiele</p>
+        <button class="example-btn">Erkläre mir JavaScript einfach</button>
+        <button class="example-btn">Gib mir drei starke Webprojekt-Ideen</button>
+        <button class="example-btn">Hilf mir bei einem modernen Anschreiben</button>
+      </div>
+
+      <div class="sidebar-card">
+        <p class="sidebar-label">Status</p>
+        <div class="mini-info">
+          <div class="status-line">
+            <span class="status-dot"></span>
+            Gemini aktiv
+          </div>
+          <p>Modernes Dark-Blue UI mit echter API-Anbindung.</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="chat-layout">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="topbar-pill">
+            <span class="status-dot"></span>
+            Gemini verbunden
+          </div>
+          <div class="topbar-pill soft">mgeex61</div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="hero-control">
+            <span class="hero-control-label">Modell</span>
+            <span class="hero-control-value">Gemini</span>
+          </div>
+        </div>
+      </header>
+
+      <section id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-box">
+          <div class="welcome-chip">KI Chat Projekt</div>
+          <h2>Eine moderne KI-Website mit echtem Gemini-Test.</h2>
+          <p>
+            Premium Design, starke Chat-Oberfläche und echte Antworten über Gemini.
+            Perfekt als modernes Portfolio-Projekt.
+          </p>
+
+          <div class="welcome-actions">
+            <button class="welcome-card">Schreibe mir eine Projektidee</button>
+            <button class="welcome-card">Erkläre mir APIs einfach</button>
+            <button class="welcome-card">Hilf mir bei einer Bewerbung</button>
+            <button class="welcome-card">Wie baue ich ein starkes Portfolio?</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="messages" class="messages"></section>
+
+      <div id="typingWrap" class="typing-wrap hidden">
+        <div class="message ai-message">
+          <div class="avatar ai-avatar">AI</div>
+          <div class="bubble ai-bubble typing-bubble">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <footer class="input-footer">
+        <div class="input-pill">
+          <textarea id="chatInput" rows="1" placeholder="Schreibe eine Nachricht..."></textarea>
+          <button id="sendBtn">Senden</button>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
