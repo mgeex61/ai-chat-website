@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       role: "user",
       parts: [
         {
-          text: "Du bist ein hilfreicher, moderner KI-Assistent. Antworte klar, freundlich und auf Deutsch."
+          text: "Du bist ein hilfreicher, moderner KI-Assistent. Antworte klar, freundlich und auf Deutsch. Verwende bei Bedarf Markdown, Listen und Codeblöcke."
         }
       ]
     };
