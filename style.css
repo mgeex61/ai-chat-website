@@ -60,7 +60,7 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 310px 1fr;
+  grid-template-columns: 320px 1fr;
   height: 100vh;
   gap: 16px;
   padding: 16px;
@@ -142,6 +142,55 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   font-weight: 700;
+}
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-switch-btn {
+  flex: 1;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-switch-btn:hover {
+  background: rgba(255,255,255,0.09);
+}
+
+.chat-switch-btn.active {
+  background: linear-gradient(180deg, rgba(94,151,255,0.20) 0%, rgba(255,255,255,0.07) 100%);
+  border-color: rgba(94,151,255,0.25);
+}
+
+.chat-delete-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  color: #ffb3b3;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .example-btn {
@@ -436,6 +485,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .bubble {
@@ -480,6 +530,76 @@ body {
 .copy-btn:hover {
   background: rgba(255,255,255,0.10);
   color: white;
+}
+
+.ai-bubble h1,
+.ai-bubble h2,
+.ai-bubble h3 {
+  margin: 0.6em 0 0.4em;
+  line-height: 1.25;
+}
+
+.ai-bubble p {
+  margin: 0.4em 0;
+}
+
+.ai-bubble ul,
+.ai-bubble ol {
+  margin: 0.5em 0;
+  padding-left: 1.3em;
+}
+
+.ai-bubble li {
+  margin: 0.25em 0;
+}
+
+.ai-bubble code.inline-code {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 0.92em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.code-block {
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0a1020;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.code-copy-btn {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: white;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #dce7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .typing-wrap {
