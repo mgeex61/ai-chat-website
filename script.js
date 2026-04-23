@@ -8,6 +8,8 @@ const welcomeScreen = document.getElementById("welcomeScreen");
 const exampleButtons = document.querySelectorAll(".example-btn");
 const welcomeCards = document.querySelectorAll(".welcome-card");
 
+const STORAGE_KEY = "mgeexai_chat_history_v1";
+
 let chatHistory = [];
 
 function autoResizeTextarea() {
@@ -25,7 +27,27 @@ function hideWelcome() {
   welcomeScreen.classList.add("hidden");
 }
 
-function addMessage(role, text) {
+function showWelcome() {
+  welcomeScreen.classList.remove("hidden");
+}
+
+function saveChatHistory() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+}
+
+function loadChatHistory() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Fehler beim Laden des Chatverlaufs:", error);
+    return [];
+  }
+}
+
+function createMessageElement(role, text = "") {
   const message = document.createElement("div");
   message.className = `message ${role === "user" ? "user-message" : "ai-message"}`;
 
@@ -39,9 +61,21 @@ function addMessage(role, text) {
 
   message.appendChild(avatar);
   message.appendChild(bubble);
-  messages.appendChild(message);
 
+  return { message, bubble };
+}
+
+function addMessage(role, text) {
+  const { message } = createMessageElement(role, text);
+  messages.appendChild(message);
   scrollToBottom();
+}
+
+function addStreamingMessage(role) {
+  const { message, bubble } = createMessageElement(role, "");
+  messages.appendChild(message);
+  scrollToBottom();
+  return bubble;
 }
 
 function showTyping(show) {
@@ -49,13 +83,49 @@ function showTyping(show) {
   if (show) scrollToBottom();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function streamTextToBubble(bubble, text) {
+  const words = text.split(" ");
+  let current = "";
+
+  for (let i = 0; i < words.length; i++) {
+    current += (i === 0 ? "" : " ") + words[i];
+    bubble.textContent = current;
+    scrollToBottom();
+
+    const word = words[i];
+    const pause = Math.min(60, Math.max(18, word.length * 4));
+    await sleep(pause);
+  }
+}
+
+function renderSavedMessages() {
+  messages.innerHTML = "";
+
+  if (chatHistory.length === 0) {
+    showWelcome();
+    return;
+  }
+
+  hideWelcome();
+
+  chatHistory.forEach((item) => {
+    addMessage(item.role === "assistant" ? "ai" : "user", item.content);
+  });
+}
+
 async function sendMessage(text) {
   const userText = text.trim();
   if (!userText) return;
 
   hideWelcome();
+
   addMessage("user", userText);
   chatHistory.push({ role: "user", content: userText });
+  saveChatHistory();
 
   chatInput.value = "";
   autoResizeTextarea();
@@ -77,15 +147,26 @@ async function sendMessage(text) {
     showTyping(false);
 
     if (!response.ok) {
-      addMessage("ai", data.error || "Es gab einen Fehler bei der Anfrage.");
+      const errorText = data.error || "Es gab einen Fehler bei der Anfrage.";
+      addMessage("ai", errorText);
+      chatHistory.push({ role: "assistant", content: errorText });
+      saveChatHistory();
       return;
     }
 
-    addMessage("ai", data.reply);
-    chatHistory.push({ role: "assistant", content: data.reply });
+    const reply = data.reply || "Keine Antwort erhalten.";
+    const bubble = addStreamingMessage("ai");
+
+    await streamTextToBubble(bubble, reply);
+
+    chatHistory.push({ role: "assistant", content: reply });
+    saveChatHistory();
   } catch (error) {
     showTyping(false);
-    addMessage("ai", "Netzwerkfehler. Bitte versuche es erneut.");
+    const errorText = "Netzwerkfehler. Bitte versuche es erneut.";
+    addMessage("ai", errorText);
+    chatHistory.push({ role: "assistant", content: errorText });
+    saveChatHistory();
     console.error(error);
   }
 }
@@ -98,14 +179,22 @@ chatInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     sendMessage(chatInput.value);
+    return;
+  }
+
+  if (event.key === "Enter" && event.shiftKey) {
+    return;
   }
 });
 
 newChatBtn.addEventListener("click", () => {
   chatHistory = [];
+  localStorage.removeItem(STORAGE_KEY);
   messages.innerHTML = "";
   showTyping(false);
-  welcomeScreen.classList.remove("hidden");
+  showWelcome();
+  chatInput.value = "";
+  autoResizeTextarea();
 });
 
 exampleButtons.forEach((button) => {
@@ -120,4 +209,6 @@ welcomeCards.forEach((card) => {
   });
 });
 
+chatHistory = loadChatHistory();
+renderSavedMessages();
 autoResizeTextarea();
