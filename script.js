@@ -2,15 +2,19 @@ const messages = document.getElementById("messages");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
+const clearChatBtn = document.getElementById("clearChatBtn");
 const typingWrap = document.getElementById("typingWrap");
 const welcomeScreen = document.getElementById("welcomeScreen");
+const modelSelect = document.getElementById("modelSelect");
 
 const exampleButtons = document.querySelectorAll(".example-btn");
 const welcomeCards = document.querySelectorAll(".welcome-card");
 
-const STORAGE_KEY = "mgeexai_chat_history_v1";
+const CHAT_STORAGE_KEY = "mgeexai_chat_history_v2";
+const MODEL_STORAGE_KEY = "mgeexai_selected_model_v1";
 
 let chatHistory = [];
+let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "gemini-2.5-flash";
 
 function autoResizeTextarea() {
   chatInput.style.height = "auto";
@@ -32,12 +36,12 @@ function showWelcome() {
 }
 
 function saveChatHistory() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+  localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatHistory));
 }
 
 function loadChatHistory() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(CHAT_STORAGE_KEY);
     if (!saved) return [];
     const parsed = JSON.parse(saved);
     return Array.isArray(parsed) ? parsed : [];
@@ -45,6 +49,29 @@ function loadChatHistory() {
     console.error("Fehler beim Laden des Chatverlaufs:", error);
     return [];
   }
+}
+
+function createCopyButton(text) {
+  const button = document.createElement("button");
+  button.className = "copy-btn";
+  button.textContent = "Kopieren";
+
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Kopiert";
+      setTimeout(() => {
+        button.textContent = "Kopieren";
+      }, 1200);
+    } catch (error) {
+      button.textContent = "Fehler";
+      setTimeout(() => {
+        button.textContent = "Kopieren";
+      }, 1200);
+    }
+  });
+
+  return button;
 }
 
 function createMessageElement(role, text = "") {
@@ -55,14 +82,26 @@ function createMessageElement(role, text = "") {
   avatar.className = `avatar ${role === "user" ? "user-avatar" : "ai-avatar"}`;
   avatar.textContent = role === "user" ? "DU" : "AI";
 
+  const contentWrap = document.createElement("div");
+  contentWrap.className = "message-content";
+
   const bubble = document.createElement("div");
   bubble.className = `bubble ${role === "user" ? "user-bubble" : "ai-bubble"}`;
   bubble.textContent = text;
 
-  message.appendChild(avatar);
-  message.appendChild(bubble);
+  contentWrap.appendChild(bubble);
 
-  return { message, bubble };
+  if (role === "ai" && text) {
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
+    actions.appendChild(createCopyButton(text));
+    contentWrap.appendChild(actions);
+  }
+
+  message.appendChild(avatar);
+  message.appendChild(contentWrap);
+
+  return { message, bubble, contentWrap };
 }
 
 function addMessage(role, text) {
@@ -72,10 +111,10 @@ function addMessage(role, text) {
 }
 
 function addStreamingMessage(role) {
-  const { message, bubble } = createMessageElement(role, "");
+  const { message, bubble, contentWrap } = createMessageElement(role, "");
   messages.appendChild(message);
   scrollToBottom();
-  return bubble;
+  return { bubble, contentWrap };
 }
 
 function showTyping(show) {
@@ -100,6 +139,13 @@ async function streamTextToBubble(bubble, text) {
     const pause = Math.min(60, Math.max(18, word.length * 4));
     await sleep(pause);
   }
+}
+
+function attachCopyAction(contentWrap, text) {
+  const actions = document.createElement("div");
+  actions.className = "message-actions";
+  actions.appendChild(createCopyButton(text));
+  contentWrap.appendChild(actions);
 }
 
 function renderSavedMessages() {
@@ -139,7 +185,8 @@ async function sendMessage(text) {
       },
       body: JSON.stringify({
         message: userText,
-        history: chatHistory
+        history: chatHistory,
+        model: selectedModel
       })
     });
 
@@ -155,9 +202,10 @@ async function sendMessage(text) {
     }
 
     const reply = data.reply || "Keine Antwort erhalten.";
-    const bubble = addStreamingMessage("ai");
+    const { bubble, contentWrap } = addStreamingMessage("ai");
 
     await streamTextToBubble(bubble, reply);
+    attachCopyAction(contentWrap, reply);
 
     chatHistory.push({ role: "assistant", content: reply });
     saveChatHistory();
@@ -179,22 +227,35 @@ chatInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     sendMessage(chatInput.value);
-    return;
-  }
-
-  if (event.key === "Enter" && event.shiftKey) {
-    return;
   }
 });
 
 newChatBtn.addEventListener("click", () => {
   chatHistory = [];
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(CHAT_STORAGE_KEY);
   messages.innerHTML = "";
   showTyping(false);
   showWelcome();
   chatInput.value = "";
   autoResizeTextarea();
+});
+
+clearChatBtn.addEventListener("click", () => {
+  const confirmed = confirm("Willst du den kompletten Chat wirklich löschen?");
+  if (!confirmed) return;
+
+  chatHistory = [];
+  localStorage.removeItem(CHAT_STORAGE_KEY);
+  messages.innerHTML = "";
+  showTyping(false);
+  showWelcome();
+});
+
+modelSelect.value = selectedModel;
+
+modelSelect.addEventListener("change", () => {
+  selectedModel = modelSelect.value;
+  localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
 });
 
 exampleButtons.forEach((button) => {
