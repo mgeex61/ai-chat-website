@@ -9,13 +9,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "GEMINI_API_KEY fehlt in Vercel." });
   }
 
-  const { message, history = [] } = req.body || {};
+  const { message, history = [], model = "gemini-2.5-flash" } = req.body || {};
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: "Nachricht fehlt." });
   }
 
   try {
+    const safeModel = ["gemini-2.5-flash", "gemini-2.5-pro"].includes(model)
+      ? model
+      : "gemini-2.5-flash";
+
     const systemInstruction = {
       role: "user",
       parts: [
@@ -34,7 +38,7 @@ export default async function handler(req, res) {
     ];
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent`,
       {
         method: "POST",
         headers: {
