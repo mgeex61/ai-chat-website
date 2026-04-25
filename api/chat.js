@@ -24,20 +24,29 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const safeHistory = Array.isArray(history) ? history.slice(-10) : [];
+    const contents = [];
 
-    const contents = safeHistory
-      .filter((msg) => msg?.content?.trim())
-      .map((msg) => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [
-          {
-            text: msg.content.slice(0, 8000)
-          }
-        ]
-      }));
-
-    const userParts = [
+if (image && image.data && image.mimeType) {
+  contents.push({
+    role: "user",
+    parts: [
+      { text: message || "Analysiere dieses Bild." },
+      {
+        inlineData: {
+          mimeType: image.mimeType,
+          data: image.data
+        }
+      }
+    ]
+  });
+} else {
+  contents.push({
+    role: "user",
+    parts: [
+      { text: message }
+    ]
+  });
+}
       {
         text: message || "Analysiere dieses Bild."
       }
