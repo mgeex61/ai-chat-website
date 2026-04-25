@@ -2,29 +2,27 @@ const messages = document.getElementById("messages");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
-const clearChatBtn = document.getElementById("clearChatBtn");
 const typingWrap = document.getElementById("typingWrap");
 const welcomeScreen = document.getElementById("welcomeScreen");
-const modelSelect = document.getElementById("modelSelect");
-const chatList = document.getElementById("chatList");
+
+const imageInput = document.getElementById("imageInput");
+const imageBtn = document.getElementById("imageBtn");
+const imagePreview = document.getElementById("imagePreview");
 
 const exampleButtons = document.querySelectorAll(".example-btn");
 const welcomeCards = document.querySelectorAll(".welcome-card");
 
-const CHATS_STORAGE_KEY = "mgeexai_chats_v1";
-const ACTIVE_CHAT_STORAGE_KEY = "mgeexai_active_chat_v1";
-const MODEL_STORAGE_KEY = "mgeexai_selected_model_v1";
+let chatHistory = JSON.parse(localStorage.getItem("mgeexAI_history")) || [];
+let selectedImage = null;
 
-let chats = [];
-let activeChatId = null;
-let selectedModel = localStorage.getItem(MODEL_STORAGE_KEY) || "gemini-2.5-flash";
+function saveHistory() {
+  localStorage.setItem("mgeexAI_history", JSON.stringify(chatHistory));
+}
 
 function autoResizeTextarea() {
   chatInput.style.height = "auto";
-  chatInput.style.height = Math.min(chatInput.scrollHeight, 180) + "px";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 170) + "px";
 }
-
-chatInput.addEventListener("input", autoResizeTextarea);
 
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
@@ -34,310 +32,37 @@ function hideWelcome() {
   welcomeScreen.classList.add("hidden");
 }
 
-function showWelcome() {
-  welcomeScreen.classList.remove("hidden");
+function showWelcomeIfEmpty() {
+  welcomeScreen.classList.toggle("hidden", chatHistory.length > 0);
 }
 
-function uid() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function createChat(title = "Neuer Chat") {
-  return {
-    id: uid(),
-    title,
-    messages: []
-  };
-}
-
-function saveChats() {
-  localStorage.setItem(CHATS_STORAGE_KEY, JSON.stringify(chats));
-  localStorage.setItem(ACTIVE_CHAT_STORAGE_KEY, activeChatId || "");
-}
-
-function loadChats() {
-  try {
-    const raw = localStorage.getItem(CHATS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error("Fehler beim Laden der Chats:", error);
-    return [];
-  }
-}
-
-function getActiveChat() {
-  return chats.find((chat) => chat.id === activeChatId) || null;
-}
-
-function ensureChatExists() {
-  if (chats.length === 0) {
-    const firstChat = createChat();
-    chats.push(firstChat);
-    activeChatId = firstChat.id;
-    saveChats();
-    return;
-  }
-
-  const exists = chats.some((chat) => chat.id === activeChatId);
-  if (!exists) {
-    activeChatId = chats[0].id;
-    saveChats();
-  }
-}
-
-function updateChatTitle(chat, fallbackText) {
-  if (!chat) return;
-  if (chat.title !== "Neuer Chat") return;
-
-  const title = (fallbackText || "Neuer Chat").trim().slice(0, 32);
-  chat.title = title || "Neuer Chat";
-}
-
-function renderChatList() {
-  chatList.innerHTML = "";
-
-  chats.forEach((chat) => {
-    const row = document.createElement("div");
-    row.className = "chat-list-item";
-
-    const switchBtn = document.createElement("button");
-    switchBtn.className = `chat-switch-btn ${chat.id === activeChatId ? "active" : ""}`;
-    switchBtn.textContent = chat.title || "Neuer Chat";
-    switchBtn.addEventListener("click", () => {
-      activeChatId = chat.id;
-      saveChats();
-      renderChatList();
-      renderActiveChat();
-    });
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "chat-delete-btn";
-    deleteBtn.textContent = "✕";
-    deleteBtn.addEventListener("click", () => {
-      if (chats.length === 1) {
-        chats = [createChat()];
-        activeChatId = chats[0].id;
-      } else {
-        chats = chats.filter((item) => item.id !== chat.id);
-        if (activeChatId === chat.id) {
-          activeChatId = chats[0].id;
-        }
-      }
-      saveChats();
-      renderChatList();
-      renderActiveChat();
-    });
-
-    row.appendChild(switchBtn);
-    row.appendChild(deleteBtn);
-    chatList.appendChild(row);
-  });
-}
-
-function createCopyButton(text) {
-  const button = document.createElement("button");
-  button.className = "copy-btn";
-  button.textContent = "Kopieren";
-
-  button.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      button.textContent = "Kopiert";
-      setTimeout(() => {
-        button.textContent = "Kopieren";
-      }, 1200);
-    } catch {
-      button.textContent = "Fehler";
-      setTimeout(() => {
-        button.textContent = "Kopieren";
-      }, 1200);
-    }
-  });
-
-  return button;
-}
-
-function escapeHtml(text) {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function applyInlineMarkdown(text) {
-  let html = escapeHtml(text);
-
-  html = html.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
-  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
-
-  return html;
-}
-
-function createCodeBlock(code, language = "") {
+function addMessage(role, text, save = true) {
   const wrapper = document.createElement("div");
-  wrapper.className = "code-block";
-
-  const header = document.createElement("div");
-  header.className = "code-header";
-
-  const lang = document.createElement("span");
-  lang.textContent = language || "Code";
-
-  const copyBtn = document.createElement("button");
-  copyBtn.className = "code-copy-btn";
-  copyBtn.textContent = "Copy";
-
-  copyBtn.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      copyBtn.textContent = "Copied";
-      setTimeout(() => {
-        copyBtn.textContent = "Copy";
-      }, 1200);
-    } catch {
-      copyBtn.textContent = "Error";
-      setTimeout(() => {
-        copyBtn.textContent = "Copy";
-      }, 1200);
-    }
-  });
-
-  header.appendChild(lang);
-  header.appendChild(copyBtn);
-
-  const pre = document.createElement("pre");
-  const codeEl = document.createElement("code");
-  codeEl.textContent = code;
-  pre.appendChild(codeEl);
-
-  wrapper.appendChild(header);
-  wrapper.appendChild(pre);
-
-  return wrapper;
-}
-
-function renderMarkdownToBubble(bubble, text) {
-  bubble.innerHTML = "";
-
-  const parts = text.split(/```/);
-
-  parts.forEach((part, index) => {
-    if (index % 2 === 1) {
-      const lines = part.split("\n");
-      const language = lines[0].trim();
-      const code = lines.slice(1).join("\n").trimEnd();
-      bubble.appendChild(createCodeBlock(code, language));
-      return;
-    }
-
-    const blocks = part.split(/\n{2,}/);
-
-    blocks.forEach((block) => {
-      const trimmed = block.trim();
-      if (!trimmed) return;
-
-      if (/^###\s+/.test(trimmed)) {
-        const el = document.createElement("h3");
-        el.innerHTML = applyInlineMarkdown(trimmed.replace(/^###\s+/, ""));
-        bubble.appendChild(el);
-        return;
-      }
-
-      if (/^##\s+/.test(trimmed)) {
-        const el = document.createElement("h2");
-        el.innerHTML = applyInlineMarkdown(trimmed.replace(/^##\s+/, ""));
-        bubble.appendChild(el);
-        return;
-      }
-
-      if (/^#\s+/.test(trimmed)) {
-        const el = document.createElement("h1");
-        el.innerHTML = applyInlineMarkdown(trimmed.replace(/^#\s+/, ""));
-        bubble.appendChild(el);
-        return;
-      }
-
-      if (/^(\-|\*)\s+/m.test(trimmed)) {
-        const ul = document.createElement("ul");
-        trimmed.split("\n").forEach((line) => {
-          const match = line.match(/^(\-|\*)\s+(.*)$/);
-          if (!match) return;
-          const li = document.createElement("li");
-          li.innerHTML = applyInlineMarkdown(match[2]);
-          ul.appendChild(li);
-        });
-        bubble.appendChild(ul);
-        return;
-      }
-
-      if (/^\d+\.\s+/m.test(trimmed)) {
-        const ol = document.createElement("ol");
-        trimmed.split("\n").forEach((line) => {
-          const match = line.match(/^\d+\.\s+(.*)$/);
-          if (!match) return;
-          const li = document.createElement("li");
-          li.innerHTML = applyInlineMarkdown(match[1]);
-          ol.appendChild(li);
-        });
-        bubble.appendChild(ol);
-        return;
-      }
-
-      const p = document.createElement("p");
-      p.innerHTML = applyInlineMarkdown(trimmed).replace(/\n/g, "<br>");
-      bubble.appendChild(p);
-    });
-  });
-}
-
-function createMessageElement(role, text = "") {
-  const message = document.createElement("div");
-  message.className = `message ${role === "user" ? "user-message" : "ai-message"}`;
-
-  const avatar = document.createElement("div");
-  avatar.className = `avatar ${role === "user" ? "user-avatar" : "ai-avatar"}`;
-  avatar.textContent = role === "user" ? "DU" : "AI";
-
-  const contentWrap = document.createElement("div");
-  contentWrap.className = "message-content";
+  wrapper.className = `message-row ${role}`;
 
   const bubble = document.createElement("div");
-  bubble.className = `bubble ${role === "user" ? "user-bubble" : "ai-bubble"}`;
+  bubble.className = "message-bubble";
+  bubble.textContent = text;
 
-  if (role === "ai") {
-    renderMarkdownToBubble(bubble, text);
-  } else {
-    bubble.textContent = text;
+  wrapper.appendChild(bubble);
+  messages.appendChild(wrapper);
+
+  if (save) {
+    chatHistory.push({ role, content: text });
+    saveHistory();
   }
 
-  contentWrap.appendChild(bubble);
-
-  if (role === "ai" && text) {
-    const actions = document.createElement("div");
-    actions.className = "message-actions";
-    actions.appendChild(createCopyButton(text));
-    contentWrap.appendChild(actions);
-  }
-
-  message.appendChild(avatar);
-  message.appendChild(contentWrap);
-
-  return { message, bubble, contentWrap };
-}
-
-function addMessage(role, text) {
-  const { message } = createMessageElement(role, text);
-  messages.appendChild(message);
   scrollToBottom();
 }
 
-function addStreamingMessage(role) {
-  const { message, bubble, contentWrap } = createMessageElement(role, "");
-  messages.appendChild(message);
-  scrollToBottom();
-  return { bubble, contentWrap };
+function renderHistory() {
+  messages.innerHTML = "";
+
+  chatHistory.forEach((msg) => {
+    addMessage(msg.role, msg.content, false);
+  });
+
+  showWelcomeIfEmpty();
 }
 
 function showTyping(show) {
@@ -345,67 +70,59 @@ function showTyping(show) {
   if (show) scrollToBottom();
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
-async function streamTextToBubble(bubble, text) {
-  const words = text.split(" ");
-  let current = "";
+    reader.onload = () => {
+      const result = reader.result;
+      const base64 = result.split(",")[1];
 
-  for (let i = 0; i < words.length; i++) {
-    current += (i === 0 ? "" : " ") + words[i];
-    renderMarkdownToBubble(bubble, current);
-    scrollToBottom();
+      resolve({
+        mimeType: file.type,
+        data: base64
+      });
+    };
 
-    const word = words[i];
-    const pause = Math.min(60, Math.max(18, word.length * 4));
-    await sleep(pause);
-  }
-}
-
-function attachCopyAction(contentWrap, text) {
-  const actions = document.createElement("div");
-  actions.className = "message-actions";
-  actions.appendChild(createCopyButton(text));
-  contentWrap.appendChild(actions);
-}
-
-function renderActiveChat() {
-  messages.innerHTML = "";
-
-  const activeChat = getActiveChat();
-  if (!activeChat || activeChat.messages.length === 0) {
-    showWelcome();
-    return;
-  }
-
-  hideWelcome();
-
-  activeChat.messages.forEach((item) => {
-    addMessage(item.role === "assistant" ? "ai" : "user", item.content);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
+}
+
+function showImagePreview(file) {
+  imagePreview.innerHTML = "";
+
+  const img = document.createElement("img");
+  img.src = URL.createObjectURL(file);
+
+  imagePreview.appendChild(img);
+  imagePreview.classList.remove("hidden");
+}
+
+function clearImagePreview() {
+  selectedImage = null;
+  imageInput.value = "";
+  imagePreview.innerHTML = "";
+  imagePreview.classList.add("hidden");
 }
 
 async function sendMessage(text) {
   const userText = text.trim();
-  if (!userText) return;
 
-  const activeChat = getActiveChat();
-  if (!activeChat) return;
+  if (!userText && !selectedImage) return;
 
   hideWelcome();
 
-  updateChatTitle(activeChat, userText);
-  addMessage("user", userText);
+  const visibleText = selectedImage
+    ? `${userText || "Analysiere dieses Bild."}\n[Bild hochgeladen]`
+    : userText;
 
-  activeChat.messages.push({ role: "user", content: userText });
-  saveChats();
-  renderChatList();
+  addMessage("user", visibleText);
 
   chatInput.value = "";
   autoResizeTextarea();
   showTyping(true);
+  sendBtn.disabled = true;
 
   try {
     const response = await fetch("/api/chat", {
@@ -414,37 +131,33 @@ async function sendMessage(text) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message: userText,
-        history: activeChat.messages,
-        model: selectedModel
+        message: userText || "Analysiere dieses Bild.",
+        history: chatHistory.slice(-10),
+        image: selectedImage
       })
     });
 
     const data = await response.json();
+
     showTyping(false);
+    sendBtn.disabled = false;
+    clearImagePreview();
 
     if (!response.ok) {
-      const errorText = data.error || "Es gab einen Fehler bei der Anfrage.";
-      addMessage("ai", errorText);
-      activeChat.messages.push({ role: "assistant", content: errorText });
-      saveChats();
+      addMessage("assistant", data.error || "Es gab einen Fehler bei Gemini.");
       return;
     }
 
-    const reply = data.reply || "Keine Antwort erhalten.";
-    const { bubble, contentWrap } = addStreamingMessage("ai");
+    if (!data.reply || data.reply.trim().length < 2) {
+      addMessage("assistant", "Die Antwort konnte nicht vollständig generiert werden.");
+      return;
+    }
 
-    await streamTextToBubble(bubble, reply);
-    attachCopyAction(contentWrap, reply);
-
-    activeChat.messages.push({ role: "assistant", content: reply });
-    saveChats();
+    addMessage("assistant", data.reply.trim());
   } catch (error) {
     showTyping(false);
-    const errorText = "Netzwerkfehler. Bitte versuche es erneut.";
-    addMessage("ai", errorText);
-    activeChat.messages.push({ role: "assistant", content: errorText });
-    saveChats();
+    sendBtn.disabled = false;
+    addMessage("assistant", "Netzwerkfehler. Bitte versuche es erneut.");
     console.error(error);
   }
 }
@@ -452,6 +165,8 @@ async function sendMessage(text) {
 sendBtn.addEventListener("click", () => {
   sendMessage(chatInput.value);
 });
+
+chatInput.addEventListener("input", autoResizeTextarea);
 
 chatInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -461,37 +176,12 @@ chatInput.addEventListener("keydown", (event) => {
 });
 
 newChatBtn.addEventListener("click", () => {
-  const newChat = createChat();
-  chats.unshift(newChat);
-  activeChatId = newChat.id;
-  saveChats();
-  renderChatList();
-  renderActiveChat();
+  chatHistory = [];
+  saveHistory();
+  messages.innerHTML = "";
   showTyping(false);
-  chatInput.value = "";
-  autoResizeTextarea();
-});
-
-clearChatBtn.addEventListener("click", () => {
-  const activeChat = getActiveChat();
-  if (!activeChat) return;
-
-  const confirmed = confirm("Willst du den aktuellen Chat wirklich löschen?");
-  if (!confirmed) return;
-
-  activeChat.messages = [];
-  activeChat.title = "Neuer Chat";
-  saveChats();
-  renderChatList();
-  renderActiveChat();
-  showTyping(false);
-});
-
-modelSelect.value = selectedModel;
-
-modelSelect.addEventListener("change", () => {
-  selectedModel = modelSelect.value;
-  localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
+  clearImagePreview();
+  welcomeScreen.classList.remove("hidden");
 });
 
 exampleButtons.forEach((button) => {
@@ -506,10 +196,23 @@ welcomeCards.forEach((card) => {
   });
 });
 
-chats = loadChats();
-activeChatId = localStorage.getItem(ACTIVE_CHAT_STORAGE_KEY);
+imageBtn.addEventListener("click", () => {
+  imageInput.click();
+});
 
-ensureChatExists();
-renderChatList();
-renderActiveChat();
+imageInput.addEventListener("change", async () => {
+  const file = imageInput.files[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Bitte nur Bilder hochladen.");
+    return;
+  }
+
+  selectedImage = await fileToBase64(file);
+  showImagePreview(file);
+});
+
+renderHistory();
 autoResizeTextarea();
